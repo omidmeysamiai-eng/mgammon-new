@@ -1,0 +1,805 @@
+import {
+  CompanySettings,
+  Shift,
+  Employee,
+  AttendanceRecord,
+  LeaveRequest,
+  AdvanceRequest,
+  SalaryRecord,
+  AuditLog,
+  User,
+  BonusOrPenalty,
+  Workshop,
+  BroadcastMessage
+} from '../types';
+import { getTodayShamsi } from '../utils/dateUtils';
+
+const today = getTodayShamsi();
+
+export const initialCompanySettings: CompanySettings = {
+  id: 'comp_mgommon_01',
+  companyName: 'M.GAMMON | مجید نورایی',
+  companyCode: 'MG-101',
+  ownerName: 'مجید نورایی',
+  logoUrl: '',
+  address: 'مجموعه کارگاهی M.GAMMON (کارگاه شماره ۱ و ۲)',
+  phoneNumber: '۰۲۱-۶۶۵۵۴۴۳۳',
+  officeLat: 35.75750,
+  officeLng: 51.41000,
+  allowedGpsRadiusMeters: 20, // فاصله مجاز حداکثر ۲۰ متر
+  workshops: [
+    {
+      id: 'ws_1',
+      name: 'کارگاه ۱ (اصلی - تولید و ساخت)',
+      code: 'کارگاه ۱',
+      lat: 35.75750,
+      lng: 51.41000,
+      allowedRadiusMeters: 20,
+      address: 'کارگاه شماره ۱ - سالن اصلی تولید'
+    },
+    {
+      id: 'ws_2',
+      name: 'کارگاه ۲ (فرعی - مونتاژ و انبار)',
+      code: 'کارگاه ۲',
+      lat: 35.75764,
+      lng: 51.41015,
+      allowedRadiusMeters: 20,
+      address: 'کارگاه شماره ۲ - واحد مجاور سالن تولید'
+    }
+  ],
+  smsSenderNumber: '500040001084',
+  qrRefreshIntervalSeconds: 30, // چرخش امنیتی QR هر ۳۰ ثانیه
+
+  // 1. قوانین زمان‌بندی و ساعات کار (شروع کار از ساعت ۷ صبح)
+  defaultWorkStartTime: '07:00',
+  defaultWorkEndTime: '16:00',
+  lateToleranceMinutes: 15,
+
+  // 2. قوانین مرخصی‌ها
+  annualLeaveDaysQuota: 26,
+  maxLeaveRequestsPerWeek: 1, // هفتگی ۱ بار امکان درخواست
+  allowMultiplePendingLeaves: false, // عدم امکان ثبت درخواست جدید در صورت وجود درخواست باز
+  maxHourlyLeaveHoursPerMonth: 16,
+
+  // 3. قوانین مساعده مالی (ماهی یکبار در نیمه ماه برای چند روز مشخص)
+  maxAdvanceRequestsPerMonth: 1, // ماهی ۱ بار
+  advanceWindowStartDay: 15, // از روز ۱۵ ماه (نیمه ماه)
+  advanceWindowEndDay: 20, // تا روز ۲۰ ماه
+  maxAdvanceSalaryPercent: 30, // سقف ۳۰٪ پایه
+
+  // 4. اساس محاسبات حقوق و دستمزد
+  workDaysPerMonth: 22,
+  dailyWorkHours: 8,
+  overtimeRateMultiplier: 1.4,
+  insuranceRatePercent: 7, // ۷٪ سهم بیمه کارگر
+  taxRatePercent: 10,
+  taxExemptionThreshold: 14000000,
+  fixedHousingAllowance: 900000, // حق مسکن (تومان)
+  fixedGroceryAllowance: 1400000, // بن خواربار (تومان)
+  childAllowance: 716000,
+};
+
+export const initialShifts: Shift[] = [
+  {
+    id: 'shift_standard_day',
+    companyId: 'comp_mgommon_01',
+    name: 'شیفت صبح کارگاه (شروع از ۰۷:۰۰)',
+    type: 'MORNING',
+    startTime: '07:00',
+    endTime: '16:00',
+    thursdayEndTime: '13:00',
+    breakDurationMinutes: 60,
+    workDays: [0, 1, 2, 3, 4, 5], // Sat to Thu
+    lateToleranceMinutes: 15,
+    earlyExitToleranceMinutes: 10,
+  },
+  {
+    id: 'shift_evening_workshop',
+    companyId: 'comp_mgommon_01',
+    name: 'شیفت عصر کارگاه (پلی‌استر و مونتاژ)',
+    type: 'EVENING',
+    startTime: '14:00',
+    endTime: '22:00',
+    breakDurationMinutes: 45,
+    workDays: [0, 1, 2, 3, 4, 5],
+    lateToleranceMinutes: 10,
+    earlyExitToleranceMinutes: 10,
+  }
+];
+
+export const initialEmployees: Employee[] = [
+  {
+    id: 'emp_01',
+    companyId: 'comp_mgommon_01',
+    personalCode: 'EMP-1001',
+    firstName: 'علیرضا',
+    lastName: 'صادقی',
+    nationalCode: '۰۰۱۸۳۴۹۵۰۱',
+    phone: '۰۹۱۲۱۱۱۱۱۱۱',
+    email: 'a.sadeghi@mgommon.ir',
+    department: 'کارگاه ۱: نجاری و کلاف‌سازی',
+    position: 'استادکار ارشد نجاری و فرم‌دهی چوب گردو',
+    workshopId: 'ws_1',
+    username: 'a.sadeghi',
+    password: '123',
+    hireDate: '۱۴۰۰/۰۱/۱۵',
+    status: 'ACTIVE',
+    contractType: 'PERMANENT',
+    shiftId: 'shift_standard_day',
+    baseSalary: 38000000,
+    hourlyRate: 215000,
+    overtimeRate: 1.4,
+    remainingLeaveDays: 19,
+    bankAccount: '۶۰۳۷-۹۹۷۱-۱۲۳۴-۵۶۷۸',
+    shebaNumber: 'IR820170000000123456789012',
+    avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&crop=face'
+  },
+  {
+    id: 'emp_02',
+    companyId: 'comp_mgommon_01',
+    personalCode: 'EMP-1002',
+    firstName: 'سارا',
+    lastName: 'محمدی',
+    nationalCode: '۰۰۲۹۴۸۵۷۱۴',
+    phone: '۰۹۱۲۲۲۲۲۲۲۲',
+    email: 's.mohammadi@mgommon.ir',
+    department: 'مدیریت و هماهنگی کارگاه',
+    position: 'سرپرست کارگاه و هماهنگی تولید',
+    workshopId: 'ws_1',
+    username: 'manager',
+    password: '123',
+    hireDate: '۱۴۰۰/۰۸/۰۱',
+    status: 'ACTIVE',
+    contractType: 'PERMANENT',
+    shiftId: 'shift_standard_day',
+    baseSalary: 35000000,
+    hourlyRate: 198000,
+    overtimeRate: 1.4,
+    remainingLeaveDays: 14,
+    bankAccount: '۵۸۹۲-۱۰۱۱-۸۸۴۲-۱۱۹۰',
+    shebaNumber: 'IR650180000000884211900001',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face'
+  },
+  {
+    id: 'emp_03',
+    companyId: 'comp_mgommon_01',
+    personalCode: 'EMP-1003',
+    firstName: 'علی',
+    lastName: 'کریمی',
+    nationalCode: '۰۳۱۰۲۹۴۸۳۲',
+    phone: '۰۹۱۲۳۳۳۳۳۳۳',
+    email: 'a.karimi@mgommon.ir',
+    department: 'کارگاه ۱: معرق و منبت‌کاری',
+    position: 'استادکار معرق و منبت تخته‌نرد',
+    workshopId: 'ws_1',
+    username: 'a.karimi',
+    password: '123',
+    hireDate: '۱۴۰۱/۰۳/۱۰',
+    status: 'ACTIVE',
+    contractType: 'PERMANENT',
+    shiftId: 'shift_standard_day',
+    baseSalary: 33000000,
+    hourlyRate: 187000,
+    overtimeRate: 1.4,
+    remainingLeaveDays: 12,
+    bankAccount: '۶۲۱۹-۸۶۱۰-۲۹۴۰-۴۴۰۱',
+    shebaNumber: 'IR410560000000294044012345',
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face'
+  },
+  {
+    id: 'emp_04',
+    companyId: 'comp_mgommon_01',
+    personalCode: 'EMP-1004',
+    firstName: 'مریم',
+    lastName: 'حسینی',
+    nationalCode: '۰۰۱۴۸۲۹۴۰۳',
+    phone: '۰۹۱۲۴۴۴۴۴۴۴',
+    email: 'm.hosseini@mgommon.ir',
+    department: 'کارگاه ۱: معرق و منبت‌کاری',
+    position: 'طراح نقوش اسلیمی و خاتم تخته‌نرد',
+    workshopId: 'ws_1',
+    username: 'm.hosseini',
+    password: '123',
+    hireDate: '۱۴۰۱/۰۶/۲۰',
+    status: 'ACTIVE',
+    contractType: 'PROBATIONARY',
+    shiftId: 'shift_standard_day',
+    baseSalary: 29000000,
+    hourlyRate: 164000,
+    overtimeRate: 1.4,
+    remainingLeaveDays: 16,
+    bankAccount: '۵۰۲۲-۲۹۱۰-۳۳۹۲-۸۹۰۱',
+    shebaNumber: 'IR920540000000339289010099',
+    avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face'
+  },
+  {
+    id: 'emp_05',
+    companyId: 'comp_mgommon_01',
+    personalCode: 'EMP-1005',
+    firstName: 'مهدی',
+    lastName: 'رضایی',
+    nationalCode: '۰۴۸۱۹۳۸۴۹۱',
+    phone: '۰۹۱۲۵۵۵۵۵۵۵',
+    email: 'm.rezaei@mgommon.ir',
+    department: 'کارگاه ۲: رنگ و پلی‌استر',
+    position: 'تکنسین ارشد سنباده و رنگ پلی‌استر',
+    workshopId: 'ws_2',
+    username: 'm.rezaei',
+    password: '123',
+    hireDate: '۱۴۰۱/۱۰/۰۱',
+    status: 'ACTIVE',
+    contractType: 'TEMPORARY',
+    shiftId: 'shift_evening_workshop',
+    baseSalary: 28000000,
+    hourlyRate: 159000,
+    overtimeRate: 1.4,
+    remainingLeaveDays: 10,
+    bankAccount: '۶۰۳۷-۶۹۱۱-۷۷۴۲-۲۰۰۲',
+    shebaNumber: 'IR180170000000774220021122',
+    avatarUrl: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&h=150&fit=crop&crop=face'
+  },
+  {
+    id: 'emp_06',
+    companyId: 'comp_mgommon_01',
+    personalCode: 'EMP-1006',
+    firstName: 'فاطمه',
+    lastName: 'کاظمی',
+    nationalCode: '۰۰۸۳۹۲۸۱۷۰',
+    phone: '۰۹۱۲۶۶۶۶۶۶۶',
+    email: 'f.kazemi@mgommon.ir',
+    department: 'کارگاه ۲: مونتاژ و یراق‌آلات',
+    position: 'استادکار مونتاژ، لولا و قفل برنجی',
+    workshopId: 'ws_2',
+    username: 'f.kazemi',
+    password: '123',
+    hireDate: '۱۴۰۲/۰۲/۱۵',
+    status: 'ACTIVE',
+    contractType: 'PERMANENT',
+    shiftId: 'shift_evening_workshop',
+    baseSalary: 26000000,
+    hourlyRate: 147000,
+    overtimeRate: 1.4,
+    remainingLeaveDays: 21,
+    bankAccount: '۶۱۰۴-۳۳۷۸-۹۰۱۲-۴۳۱۱',
+    shebaNumber: 'IR720120000000901243110001',
+    avatarUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&h=150&fit=crop&crop=face'
+  },
+  {
+    id: 'emp_07',
+    companyId: 'comp_mgommon_01',
+    personalCode: 'EMP-1007',
+    firstName: 'پویا',
+    lastName: 'احمدی',
+    nationalCode: '۰۳۲۹۴۸۱۹۳۰',
+    phone: '۰۹۱۲۷۷۷۷۷۷۷',
+    email: 'p.ahmadi@mgommon.ir',
+    department: 'انبار چوب، کنترل کیفیت و ارسال',
+    position: 'مسئول کنترل کیفیت و بسته‌بندی صادراتی',
+    workshopId: 'ws_2',
+    username: 'p.ahmadi',
+    password: '123',
+    hireDate: '۱۴۰۲/۰۷/۰۱',
+    status: 'ACTIVE',
+    contractType: 'PROBATIONARY',
+    shiftId: 'shift_standard_day',
+    baseSalary: 27000000,
+    hourlyRate: 153000,
+    overtimeRate: 1.4,
+    remainingLeaveDays: 15,
+    bankAccount: '۵۰۴۱-۷۲۱۰-۴۴۹۱-۹۰۰۸',
+    shebaNumber: 'IR330550000000449190082211',
+    avatarUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&h=150&fit=crop&crop=face'
+  },
+  {
+    id: 'emp_08',
+    companyId: 'comp_mgommon_01',
+    personalCode: 'EMP-1008',
+    firstName: 'نیلوفر',
+    lastName: 'امینی',
+    nationalCode: '۰۰۲۹۱۸۴۷۳۲',
+    phone: '۰۹۱۲۸۸۸۸۸۸۸',
+    email: 'n.amini@mgommon.ir',
+    department: 'انبار چوب، کنترل کیفیت و ارسال',
+    position: 'مسئول انبار چوب گردو و ثبت سفارشات',
+    workshopId: 'ws_2',
+    username: 'n.amini',
+    password: '123',
+    hireDate: '۱۴۰۲/۱۱/۱۰',
+    status: 'ON_LEAVE',
+    contractType: 'TEMPORARY',
+    shiftId: 'shift_standard_day',
+    baseSalary: 26000000,
+    hourlyRate: 147000,
+    overtimeRate: 1.4,
+    remainingLeaveDays: 8,
+    bankAccount: '۶۳۹۳-۴۶۱۰-۸۸۱۹-۳۳۲۲',
+    shebaNumber: 'IR900620000000881933220044',
+    avatarUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150&h=150&fit=crop&crop=face'
+  }
+];
+
+export const initialUsers: User[] = [
+  {
+    id: 'usr_admin',
+    companyId: 'comp_mgommon_01',
+    employeeId: 'emp_admin',
+    username: 'admin',
+    password: '123',
+    name: 'مجید نورایی',
+    email: 'm.nouraei@mgommon.ir',
+    phone: '۰۹۱۲۱۰۰۲۰۰۰',
+    role: 'ADMIN',
+    workshopId: 'ws_1',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face'
+  },
+  {
+    id: 'usr_manager',
+    companyId: 'comp_mgommon_01',
+    employeeId: 'emp_02',
+    username: 'manager',
+    password: '123',
+    name: 'سارا محمدی',
+    email: 's.mohammadi@mgommon.ir',
+    phone: '۰۹۱۲۲۲۲۲۲۲۲',
+    role: 'MANAGER',
+    workshopId: 'ws_1',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face'
+  },
+  {
+    id: 'usr_emp_karimi',
+    companyId: 'comp_mgommon_01',
+    employeeId: 'emp_03',
+    username: 'a.karimi',
+    password: '123',
+    name: 'علی کریمی',
+    email: 'a.karimi@mgommon.ir',
+    phone: '۰۹۱۲۳۳۳۳۳۳۳',
+    role: 'EMPLOYEE',
+    workshopId: 'ws_1',
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face'
+  },
+  {
+    id: 'usr_emp_hosseini',
+    companyId: 'comp_mgommon_01',
+    employeeId: 'emp_04',
+    username: 'm.hosseini',
+    password: '123',
+    name: 'مریم حسینی',
+    email: 'm.hosseini@mgommon.ir',
+    phone: '۰۹۱۲۴۴۴۴۴۴۴',
+    role: 'EMPLOYEE',
+    workshopId: 'ws_2',
+    avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face'
+  }
+];
+
+export const initialAttendanceRecords: AttendanceRecord[] = [
+  {
+    id: 'att_01',
+    companyId: 'comp_iran_tech_01',
+    employeeId: 'emp_01',
+    date: today,
+    checkInTime: '07:54',
+    checkOutTime: '', // still working
+    workDurationMinutes: 300,
+    lateMinutes: 0,
+    earlyExitMinutes: 0,
+    overtimeMinutes: 0,
+    status: 'PRESENT',
+    checkInMethod: 'QR_CODE',
+    verifiedLocation: { lat: 35.7576, lng: 51.4102, distanceMeters: 22 }
+  },
+  {
+    id: 'att_02',
+    companyId: 'comp_iran_tech_01',
+    employeeId: 'emp_02',
+    date: today,
+    checkInTime: '08:02',
+    checkOutTime: '',
+    workDurationMinutes: 290,
+    lateMinutes: 0,
+    earlyExitMinutes: 0,
+    overtimeMinutes: 0,
+    status: 'PRESENT',
+    checkInMethod: 'GPS',
+    verifiedLocation: { lat: 35.7574, lng: 51.4099, distanceMeters: 18 }
+  },
+  {
+    id: 'att_03',
+    companyId: 'comp_iran_tech_01',
+    employeeId: 'emp_03',
+    date: today,
+    checkInTime: '08:35', // 20 mins late after tolerance
+    checkOutTime: '',
+    workDurationMinutes: 250,
+    lateMinutes: 20,
+    earlyExitMinutes: 0,
+    overtimeMinutes: 0,
+    status: 'LATE',
+    checkInMethod: 'QR_CODE',
+    verifiedLocation: { lat: 35.7575, lng: 51.4101, distanceMeters: 12 },
+    notes: 'ترافیک صبحگاهی پل صدر'
+  },
+  {
+    id: 'att_04',
+    companyId: 'comp_iran_tech_01',
+    employeeId: 'emp_04',
+    date: today,
+    checkInTime: '07:58',
+    checkOutTime: '',
+    workDurationMinutes: 295,
+    lateMinutes: 0,
+    earlyExitMinutes: 0,
+    overtimeMinutes: 45,
+    status: 'PRESENT',
+    checkInMethod: 'QR_CODE',
+    verifiedLocation: { lat: 35.7575, lng: 51.4100, distanceMeters: 5 }
+  },
+  {
+    id: 'att_05',
+    companyId: 'comp_iran_tech_01',
+    employeeId: 'emp_05',
+    date: today,
+    checkInTime: '08:12',
+    checkOutTime: '',
+    workDurationMinutes: 280,
+    lateMinutes: 0, // within 15 min tolerance
+    earlyExitMinutes: 0,
+    overtimeMinutes: 0,
+    status: 'PRESENT',
+    checkInMethod: 'MANUAL',
+    notes: 'ثبت دستی توسط واحد اداری'
+  },
+  {
+    id: 'att_06',
+    companyId: 'comp_iran_tech_01',
+    employeeId: 'emp_06',
+    date: today,
+    checkInTime: '',
+    checkOutTime: '',
+    workDurationMinutes: 0,
+    lateMinutes: 0,
+    earlyExitMinutes: 0,
+    overtimeMinutes: 0,
+    status: 'ABSENT', // Not checked in yet or evening shift
+    notes: 'شیفت عصر از ساعت ۱۵:۳۰ شروع می‌شود'
+  },
+  {
+    id: 'att_07',
+    companyId: 'comp_iran_tech_01',
+    employeeId: 'emp_07',
+    date: today,
+    checkInTime: '23:00',
+    checkOutTime: '07:35',
+    workDurationMinutes: 515,
+    lateMinutes: 0,
+    earlyExitMinutes: 0,
+    overtimeMinutes: 65,
+    status: 'PRESENT',
+    checkInMethod: 'QR_CODE'
+  },
+  {
+    id: 'att_08',
+    companyId: 'comp_iran_tech_01',
+    employeeId: 'emp_08',
+    date: today,
+    checkInTime: '',
+    checkOutTime: '',
+    workDurationMinutes: 0,
+    lateMinutes: 0,
+    earlyExitMinutes: 0,
+    overtimeMinutes: 0,
+    status: 'ON_LEAVE',
+    notes: 'مرخصی استحقاقی تایید شده'
+  }
+];
+
+export const initialLeaveRequests: LeaveRequest[] = [
+  {
+    id: 'leave_01',
+    companyId: 'comp_iran_tech_01',
+    employeeId: 'emp_08',
+    employeeName: 'نیلوفر امینی',
+    type: 'EARNED',
+    startDate: today,
+    endDate: today,
+    durationDays: 1,
+    reason: 'انجام امور اداری و سند مالکیت',
+    status: 'APPROVED',
+    createdAt: '۱۴۰۳/۰۷/۰۱ - ۱۱:۳۰',
+    reviewedBy: 'سارا محمدی',
+    reviewedAt: '۱۴۰۳/۰۷/۰۱ - ۱۶:۴۵'
+  },
+  {
+    id: 'leave_02',
+    companyId: 'comp_iran_tech_01',
+    employeeId: 'emp_03',
+    employeeName: 'علی کریمی',
+    type: 'HOURLY',
+    startDate: today,
+    endDate: today,
+    startTime: '13:00',
+    endTime: '15:30',
+    durationHours: 2.5,
+    reason: 'مراجعه به کلینیک دندانپزشکی',
+    status: 'PENDING',
+    createdAt: `${today} - ۰۹:۱۵`
+  },
+  {
+    id: 'leave_03',
+    companyId: 'comp_iran_tech_01',
+    employeeId: 'emp_04',
+    employeeName: 'مریم حسینی',
+    type: 'EARNED',
+    startDate: '۱۴۰۳/۰۷/۱۰',
+    endDate: '۱۴۰۳/۰۷/۱۲',
+    durationDays: 3,
+    reason: 'مسافرت خانوادگی سالیانه',
+    status: 'PENDING',
+    createdAt: `${today} - ۱۰:۰۵`
+  },
+  {
+    id: 'leave_04',
+    companyId: 'comp_iran_tech_01',
+    employeeId: 'emp_05',
+    employeeName: 'مهدی رضایی',
+    type: 'MEDICAL',
+    startDate: '۱۴۰۳/۰۶/۲۵',
+    endDate: '۱۴۰۳/۰۶/۲۶',
+    durationDays: 2,
+    reason: 'سرماخوردگی شدید و گواهی پزشک معتمد',
+    status: 'APPROVED',
+    createdAt: '۱۴۰۳/۰۶/۲۴ - ۱۸:۰۰',
+    reviewedBy: 'سارا محمدی',
+    reviewedAt: '۱۴۰۳/۰۶/۲۴ - ۲۰:۱۵'
+  }
+];
+
+export const initialAdvanceRequests: AdvanceRequest[] = [
+  {
+    id: 'adv_01',
+    companyId: 'comp_iran_tech_01',
+    employeeId: 'emp_03',
+    employeeName: 'علی کریمی',
+    amount: 6000000,
+    requestDate: today,
+    repayMonth: '۱۴۰۳/۰۷',
+    reason: 'پرداخت قسط فوری و هزینه‌های تعمیر خودرو',
+    status: 'PENDING',
+    createdAt: `${today} - ۰۹:۴۰`
+  },
+  {
+    id: 'adv_02',
+    companyId: 'comp_iran_tech_01',
+    employeeId: 'emp_06',
+    employeeName: 'فاطمه کاظمی',
+    amount: 4500000,
+    requestDate: '۱۴۰۳/۰۶/۲۸',
+    repayMonth: '۱۴۰۳/۰۷',
+    reason: 'شهریه دانشگاه ترم جدید',
+    status: 'APPROVED',
+    createdAt: '۱۴۰۳/۰۶/۲۸ - ۱۱:۰۰',
+    reviewedBy: 'علیرضا صادقی',
+    reviewedAt: '۱۴۰۳/۰۶/۲۸ - ۱۷:۳۰'
+  },
+  {
+    id: 'adv_03',
+    companyId: 'comp_iran_tech_01',
+    employeeId: 'emp_07',
+    employeeName: 'پویا احمدی',
+    amount: 15000000,
+    requestDate: '۱۴۰۳/۰۶/۲۰',
+    repayMonth: '۱۴۰۳/۰۶',
+    reason: 'ودیعه مسکن',
+    status: 'REJECTED',
+    rejectionReason: 'مبلغ درخواستی بیش از سقف مجاز مساعده ماهانه (۳۰٪ حقوق) است.',
+    createdAt: '۱۴۰۳/۰۶/۲۰ - ۱۰:۱۵',
+    reviewedBy: 'علیرضا صادقی',
+    reviewedAt: '۱۴۰۳/۰۶/۲۱ - ۱۱:۰۰'
+  }
+];
+
+export const initialBonusesPenalties: BonusOrPenalty[] = [
+  {
+    id: 'bp_01',
+    companyId: 'comp_iran_tech_01',
+    employeeId: 'emp_03',
+    type: 'BONUS',
+    amount: 2500000,
+    date: '۱۴۰۳/۰۶/۳۰',
+    month: '۱۴۰۳/۰۶',
+    title: 'پاداش حل بحران سرور و انتشار نسخه',
+    description: 'تلاش شبانه‌روزی برای رفع باگ امنیتی در روز تعطیل'
+  },
+  {
+    id: 'bp_02',
+    companyId: 'comp_iran_tech_01',
+    employeeId: 'emp_03',
+    type: 'PENALTY',
+    amount: 450000,
+    date: '۱۴۰۳/۰۶/۲۸',
+    month: '۱۴۰۳/۰۶',
+    title: 'کسر جریمه غیبت غیرموجه نیم‌روز',
+    description: 'عدم ثبت مرخصی در سامانه'
+  }
+];
+
+export const initialSalaryRecords: SalaryRecord[] = [
+  {
+    id: 'sal_01',
+    companyId: 'comp_iran_tech_01',
+    employeeId: 'emp_01',
+    month: '۱۴۰۳/۰۶',
+    baseSalary: 42000000,
+    workDays: 22,
+    workedHours: 180,
+    overtimeHours: 24,
+    overtimeAmount: 8000000,
+    bonusesTotal: 5000000,
+    penaltiesTotal: 0,
+    advancesTotal: 0,
+    housingAllowance: 900000,
+    groceryAllowance: 1400000,
+    childAllowance: 1200000,
+    grossSalary: 58500000,
+    insuranceDeduction: 2940000,
+    taxDeduction: 4200000,
+    netSalary: 51360000,
+    status: 'PAID',
+    paymentDate: '۱۴۰۳/۰۶/۳۱'
+  },
+  {
+    id: 'sal_02',
+    companyId: 'comp_iran_tech_01',
+    employeeId: 'emp_03',
+    month: '۱۴۰۳/۰۶',
+    baseSalary: 32000000,
+    workDays: 22,
+    workedHours: 176,
+    overtimeHours: 18,
+    overtimeAmount: 4560000,
+    bonusesTotal: 2500000,
+    penaltiesTotal: 450000,
+    advancesTotal: 0,
+    housingAllowance: 900000,
+    groceryAllowance: 1400000,
+    childAllowance: 0,
+    grossSalary: 40910000,
+    insuranceDeduction: 2240000,
+    taxDeduction: 2500000,
+    netSalary: 36170000,
+    status: 'PAID',
+    paymentDate: '۱۴۰۳/۰۶/۳۱'
+  },
+  {
+    id: 'sal_03',
+    companyId: 'comp_iran_tech_01',
+    employeeId: 'emp_04',
+    month: '۱۴۰۳/۰۶',
+    baseSalary: 28000000,
+    workDays: 21,
+    workedHours: 168,
+    overtimeHours: 10,
+    overtimeAmount: 2226000,
+    bonusesTotal: 1000000,
+    penaltiesTotal: 0,
+    advancesTotal: 0,
+    housingAllowance: 900000,
+    groceryAllowance: 1400000,
+    childAllowance: 0,
+    grossSalary: 33526000,
+    insuranceDeduction: 1960000,
+    taxDeduction: 1700000,
+    netSalary: 29866000,
+    status: 'PAID',
+    paymentDate: '۱۴۰۳/۰۶/۳۱'
+  },
+  {
+    id: 'sal_04',
+    companyId: 'comp_iran_tech_01',
+    employeeId: 'emp_06',
+    month: '۱۴۰۳/۰۷',
+    baseSalary: 23500000,
+    workDays: 22,
+    workedHours: 176,
+    overtimeHours: 12,
+    overtimeAmount: 2234000,
+    bonusesTotal: 0,
+    penaltiesTotal: 0,
+    advancesTotal: 4500000, // deducted approved advance
+    housingAllowance: 900000,
+    groceryAllowance: 1400000,
+    childAllowance: 0,
+    grossSalary: 28034000,
+    insuranceDeduction: 1645000,
+    taxDeduction: 1100000,
+    netSalary: 20789000,
+    status: 'CALCULATED'
+  }
+];
+
+export const initialAuditLogs: AuditLog[] = [
+  {
+    id: 'log_01',
+    companyId: 'comp_iran_tech_01',
+    userId: 'usr_admin',
+    userName: 'علیرضا صادقی',
+    action: 'تأیید درخواست مساعده',
+    resource: 'مساعده مالی / فاطمه کاظمی',
+    details: 'موافقت با مبلغ ۴,۵۰۰,۰۰۰ تومان جهت کسر از حقوق مهر ۱۴۰۳',
+    timestamp: '۱۴۰۳/۰۶/۲۸ - ۱۷:۳۰',
+    ipAddress: '192.168.1.45'
+  },
+  {
+    id: 'log_02',
+    companyId: 'comp_iran_tech_01',
+    userId: 'usr_manager',
+    userName: 'سارا محمدی',
+    action: 'تأیید مرخصی استحقاقی',
+    resource: 'مرخصی / نیلوفر امینی',
+    details: 'تأیید ۱ روز مرخصی برای تاریخ ۱۴۰۳/۰۷/۰۱',
+    timestamp: '۱۴۰۳/۰۷/۰۱ - ۱۶:۴۵',
+    ipAddress: '192.168.1.72'
+  },
+  {
+    id: 'log_03',
+    companyId: 'comp_iran_tech_01',
+    userId: 'usr_admin',
+    userName: 'علیرضا صادقی',
+    action: 'محاسبه فیش‌های حقوقی',
+    resource: 'حقوق و دستمزد / شهریور ۱۴۰۳',
+    details: 'محاسبه و نهایی‌سازی فیش حقوقی ۸ پرسنل فعال شرکت',
+    timestamp: '۱۴۰۳/۰۶/۳۰ - ۲۲:۰۰',
+    ipAddress: '192.168.1.45'
+  },
+  {
+    id: 'log_04',
+    companyId: 'comp_iran_tech_01',
+    userId: 'usr_manager',
+    userName: 'سارا محمدی',
+    action: 'ثبت حضور دستی',
+    resource: 'حضور و غیاب / مهدی رضایی',
+    details: 'ثبت ورود دستی ساعت ۰۸:۱۲ به دلیل اختلال موقت اینترنت گوشی',
+    timestamp: `${today} - ۰۸:۲۰`,
+    ipAddress: '192.168.1.72'
+  }
+];
+
+export const initialBroadcastMessages: BroadcastMessage[] = [
+  {
+    id: 'msg_01',
+    companyId: 'comp_mgommon_01',
+    senderName: 'مجید نورایی (مدیریت کارگاه)',
+    recipientType: 'ALL',
+    title: 'جلسه هماهنگی کارگاه ۱ و ۲',
+    content: 'همکاران گرامی کارگاه ۱ و ۲، فردا ساعت ۸:۳۰ صبح جلسه هماهنگی تحویل سفارشات هفتگی در سالن اصلی برگزار می‌شود. حضور به موقع الزامی است.',
+    channel: 'BOTH',
+    sentAt: `${today} - ۰۹:۰۰`,
+    status: 'DELIVERED',
+    partsCount: 1
+  },
+  {
+    id: 'msg_02',
+    companyId: 'comp_mgommon_01',
+    senderName: 'سارا محمدی (امور اداری و مالی)',
+    recipientType: 'ALL',
+    title: 'واریز حقوق و صدور فیش‌ها',
+    content: 'فیش‌های حقوقی شهریور ماه نهایی و مبالغ به شماره شبای بانکی واریز گردید. می‌توانید از بخش فیش حقوقی نسخه PDF یا پرینت را دریافت کنید.',
+    channel: 'SMS',
+    sentAt: '۱۴۰۳/۰۶/۳۱ - ۱۵:۳۰',
+    status: 'DELIVERED',
+    partsCount: 1
+  },
+  {
+    id: 'msg_03',
+    companyId: 'comp_mgommon_01',
+    senderName: 'مجید نورایی',
+    recipientType: 'WORKSHOP_1',
+    title: 'رعایت فاصله مجاز ۲۰ متری هنگام ثبت تردد',
+    content: 'توجه: سامانه موقعیت مکانی برای ثبت ورود و خروج دقیقا روی ۲۰ متر شعاع کارگاه تنظیم شده است. لطفاً داخل محوطه کارگاه حضور خود را ثبت نمایید.',
+    channel: 'IN_APP',
+    sentAt: `${today} - ۰۷:۴۵`,
+    status: 'DELIVERED',
+    partsCount: 1
+  }
+];

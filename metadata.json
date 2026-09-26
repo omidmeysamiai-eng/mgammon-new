@@ -1,0 +1,6 @@
+{
+  "name": "M.GAMMON | مجید نورایی",
+  "description": "سامانه مدیریت پرسنل کارگاهی، تردد هوشمند با QR و GPS با محدوده ۲۰ متری، شیفت، مرخصی، فیش حقوقی و پیام‌رسانی گروهی",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
